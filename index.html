@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sand Hunt</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* One visual world: a field notebook page on wet river stone. Single theme by choice. */
+  --stone:#C3CAC6;
+  --paper:#FBFBF7;
+  --ink:#1B1F1D;
+  --muted:#525A56;
+  --hivis:#D9480F;   /* the one bold accent */
+  --river:#1D5C8C;
+  --coast:#2E7D74;
+  --people:#7A4E9C;
+  --good:#2B7A3D;
+  --bad:#B3261E;
+  --rule:#D5D8D3;
+  --display:"Barlow Condensed","Arial Narrow",sans-serif;
+  --body:"Barlow","Segoe UI",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--stone);color:var(--ink);font-family:var(--body);font-size:17px;line-height:1.45}
+.wrap{max-width:840px;margin:0 auto;padding:20px 16px 40px;display:flex;flex-direction:column;gap:14px}
+.sheet{background:var(--paper);border-radius:4px;box-shadow:0 1px 0 rgba(0,0,0,.08),0 8px 24px rgba(0,0,0,.08);overflow:hidden}
+canvas#pile{display:block;width:100%;height:110px}
+.head{padding:4px 22px 18px;display:flex;flex-wrap:wrap;gap:6px 24px;align-items:flex-end;justify-content:space-between}
+h1{font-family:var(--display);font-weight:800;font-size:64px;line-height:.9;margin:0;letter-spacing:.01em;text-transform:uppercase}
+h1 span{color:var(--hivis)}
+.tagline{margin:0;max-width:470px;color:var(--muted);font-size:16px}
+.gauges{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--rule)}
+.gauge{background:var(--paper);padding:12px 16px;display:flex;flex-direction:column;gap:6px}
+.gauge .lbl{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.gauge .val{font-family:var(--display);font-weight:700;font-size:30px;line-height:1;font-variant-numeric:tabular-nums}
+.bar{height:8px;background:#E7E9E4;border-radius:2px;overflow:hidden}
+.bar i{display:block;height:100%;width:100%;transition:width .5s ease}
+.round{padding:18px 22px;display:flex;flex-direction:column;gap:14px}
+.proj{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px 20px;align-items:baseline;border-bottom:2px dashed var(--rule);padding-bottom:12px}
+.proj h2{font-family:var(--display);font-weight:700;font-size:34px;line-height:1;margin:0;text-transform:uppercase}
+.step{font-family:var(--mono);font-size:13px;color:var(--muted)}
+.hint{margin:0;color:var(--muted);font-size:15px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:10px}
+.card{appearance:none;font:inherit;text-align:left;cursor:pointer;background:var(--paper);color:var(--ink);border:2px solid var(--ink);border-radius:4px;padding:12px;display:flex;flex-direction:column;gap:8px;transition:transform .12s ease,box-shadow .12s ease;min-height:170px}
+.card:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 4px 0 var(--ink)}
+.card:focus-visible{outline:3px solid var(--hivis);outline-offset:2px}
+.card:disabled{cursor:default;opacity:.45}
+.card.picked{opacity:1;background:var(--ink);color:var(--paper)}
+.card.picked .meta{color:#C9CCC8}
+.card .nm{font-family:var(--display);font-weight:700;font-size:22px;line-height:1.05;text-transform:uppercase}
+.card .tg{font-size:14px;line-height:1.3}
+.card .meta{margin-top:auto;font-family:var(--mono);font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:2px}
+.card .meta .warn{color:var(--bad)}
+.card.picked .meta .warn{color:#FF9C8F}
+.swatch{width:100%;height:10px;border-radius:2px}
+.result{border:2px solid var(--ink);border-radius:4px;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.result.event{border-color:var(--river);background:#F1F6FA}
+.stamp{display:inline-block;font-family:var(--display);font-weight:800;font-size:24px;letter-spacing:.06em;padding:2px 12px;border:3px solid currentColor;border-radius:3px;transform:rotate(-2deg);align-self:flex-start;text-transform:uppercase}
+.stamp.good{color:var(--good)}.stamp.bad{color:var(--bad)}.stamp.ev{color:var(--river)}
+.deltas{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-family:var(--mono);font-size:13px;padding:3px 8px;border-radius:3px;background:#ECEEEA}
+.chip.dn{background:#F8E1DE;color:#8C1D17}.chip.up{background:#DDF0E1;color:#1F5C2D}
+.fact{margin:0;font-size:16px}
+.fact b{color:var(--river)}
+.go{appearance:none;font:inherit;font-family:var(--display);font-weight:700;font-size:22px;text-transform:uppercase;letter-spacing:.04em;cursor:pointer;background:var(--hivis);color:#fff;border:0;border-radius:4px;padding:10px 20px;align-self:flex-start;min-height:44px}
+.go:hover{background:#B83C0C}
+.go:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+.end{padding:22px;display:flex;flex-direction:column;gap:16px}
+.score{display:flex;flex-wrap:wrap;gap:8px 24px;align-items:baseline}
+.score .big{font-family:var(--display);font-weight:800;font-size:96px;line-height:.85;color:var(--hivis);font-variant-numeric:tabular-nums}
+.score .rank{font-family:var(--display);font-weight:700;font-size:34px;text-transform:uppercase;line-height:1}
+.score p{margin:4px 0 0;color:var(--muted);max-width:460px}
+table{border-collapse:collapse;width:100%;font-size:15px}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--rule)}
+th{font-family:var(--mono);font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:400}
+.tablebox{overflow-x:auto}
+h3{font-family:var(--display);font-weight:700;font-size:24px;text-transform:uppercase;margin:0}
+ul.facts{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
+.foot{font-size:13px;color:var(--muted);padding:0 4px;margin:0}
+@media (max-width:600px){
+  h1{font-size:48px}
+  .gauges{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .gauge .val{font-size:24px}
+  .gauge{padding:10px}
+  .score .big{font-size:72px}
+}
+@media (prefers-reduced-motion:reduce){ .bar i,.card{transition:none} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="sheet">
+    <canvas id="pile" aria-hidden="true"></canvas>
+    <div class="head">
+      <h1>Sand <span>Hunt</span></h1>
+      <p class="tagline">You manage your region's sand. Five projects need concrete, and concrete needs sand. Choose where it comes from, and keep the rivers, coasts and communities healthy without blowing the budget.</p>
+    </div>
+    <div class="gauges" role="group" aria-label="Region status">
+      <div class="gauge"><span class="lbl">Budget</span><span class="val" id="gBudget">$100M</span><span class="bar"><i id="bBudget" style="background:var(--ink)"></i></span></div>
+      <div class="gauge"><span class="lbl">Rivers</span><span class="val" id="gRivers">100%</span><span class="bar"><i id="bRivers" style="background:var(--river)"></i></span></div>
+      <div class="gauge"><span class="lbl">Coasts</span><span class="val" id="gCoasts">100%</span><span class="bar"><i id="bCoasts" style="background:var(--coast)"></i></span></div>
+      <div class="gauge"><span class="lbl">Communities</span><span class="val" id="gPeople">100%</span><span class="bar"><i id="bPeople" style="background:var(--people)"></i></span></div>
+    </div>
+  </header>
+
+  <main class="sheet" id="stage" aria-live="polite"></main>
+
+  <p class="foot">Game numbers are simplified for play. The "real world" facts come from UNEP's sand reports (2022, 2026), USGS Mineral Commodity Summaries 2026, and Mekong Delta research and reporting. Made by Brady Erhart for FW 221 Conservation of Natural Resources, NC State.</p>
+</div>
+
+<script>
+(function(){
+const SOURCES = [
+  {id:"river", name:"River dredge", tag:"Cheap, sharp grains straight from the riverbed", cost:12, d:{rivers:-24, coasts:-4, people:-4}, works:true, color:"#B8955A",
+   facts:["Vietnam's Mekong Delta is mined <b>6 to 15 times faster</b> than the river can refill it, eroding the riverbed in about 65% of its channels.",
+          "UNEP calls sand extraction a <b>major driver of freshwater biodiversity loss</b>, because rivers are the easiest, closest places to dig."]},
+  {id:"beach", name:"Beach scoop", tag:"Close by and easy to load", cost:10, d:{rivers:0, coasts:-26, people:-6}, works:true, color:"#E0C690",
+   facts:["Removing 22 million m³ of sand off South Sulawesi, Indonesia reportedly <b>cut local fishers' incomes by 80%</b> and harmed coral reefs and mangroves.",
+          "Dredging 155 million m³ of sand for a new airport in Manila Bay <b>displaced 700 families</b> and damaged a major fishing ground."]},
+  {id:"desert", name:"Desert dunes", tag:"Endless, untouched and dirt cheap", cost:6, d:{rivers:0, coasts:0, people:0}, works:false, color:"#E7B97A",
+   facts:["Wind polishes desert grains <b>round and smooth</b>, so they slip instead of locking together in concrete.",
+          "That's why <b>Saudi Arabia imports construction sand</b> while sitting on a desert."]},
+  {id:"crushed", name:"Crushed rock", tag:"Manufactured sand from a quarry", cost:20, d:{rivers:-3, coasts:0, people:0}, works:true, color:"#8E918B",
+   facts:["<b>Manufactured sand</b> made by crushing rock behaves much like natural sand and moves digging away from rivers and beaches.",
+          "Quarries can sit far from sensitive rivers and coasts, though crushing rock <b>takes more energy</b>."]},
+  {id:"recycled", name:"Recycled concrete", tag:"Crushed rubble from old buildings", cost:15, d:{rivers:0, coasts:0, people:3}, works:true, limit:2, color:"#A7A49B",
+   facts:["Crushed concrete and demolition debris can <b>replace part of the natural sand and gravel</b> in new concrete, and keeps rubble out of landfills.",
+          "UNEP points to <b>recycled construction waste</b> and sand recovered from mine waste as ways to take pressure off rivers and coasts."]}
+];
+const PROJECTS = [
+  {name:"Neighborhood sidewalk", note:"A small pour, but every project needs sand."},
+  {name:"Elementary school", note:"Floors, walls and footings for 600 kids."},
+  {name:"Highway bridge", note:"A big job. Thousands of tonnes of concrete."},
+  {name:"Coastal seawall", note:"Ironic if you dig up the beach to build it."},
+  {name:"City hospital", note:"The last project. Finish strong."}
+];
+const EVENTS = {
+  1:{title:"Flood season", key:"rivers", label:"Rivers", stampGood:"Banks held", stampBad:"Banks collapsed",
+     good:"Your rivers kept their sand, so the riverbanks held through the floods. No homes lost.",
+     bad:n=>`Dredged riverbeds sank and the banks gave way in the floods. Homes and farmland were lost (Communities −${n}).`,
+     fact:"Between 2016 and 2023, about <b>750 km of Mekong Delta riverbank</b> and nearly 2,000 houses sank into rivers as sand mining and dams starved the delta."},
+  3:{title:"Storm surge", key:"coasts", label:"Coasts", stampGood:"Coast protected", stampBad:"Coast flooded",
+     good:"Your beaches and dunes were still there to absorb the storm. The town stayed dry.",
+     bad:n=>`With the beaches stripped, the storm surge rolled straight into town (Communities −${n}).`,
+     fact:"UNEP calls sand our <b>first line of defense</b> against sea-level rise, storm surges and salt water seeping into coastal aquifers."}
+};
+const START = 100, REDO = 8;
+const byId = id => SOURCES.find(s => s.id === id);
+const clamp = v => Math.max(0, Math.min(100, v));
+const harm = v => v===0 ? "OK" : v<=-15 ? "heavy harm" : v<0 ? "minor" : "helps";
+
+let S = fresh();
+function fresh(){ return {round:0, budget:START, rivers:100, coasts:100, people:100, picks:[], phase:"choose", lastDelta:null}; }
+
+function setG(id, v){ document.getElementById("g"+id).textContent = v+"%"; document.getElementById("b"+id).style.width = v+"%"; }
+function gauges(){
+  const g = document.getElementById("gBudget");
+  g.textContent = (S.budget<0?"−$":"$")+Math.abs(S.budget)+"M";
+  g.style.color = S.budget<0 ? "var(--bad)" : "";
+  document.getElementById("bBudget").style.width = clamp(S.budget/START*100)+"%";
+  setG("Rivers", S.rivers); setG("Coasts", S.coasts); setG("People", S.people);
+}
+const stage = document.getElementById("stage");
+const used = id => S.picks.filter(x=>x.id===id).length;
+
+function chips(delta){
+  return Object.entries(delta).filter(([k,v])=>v!==0).map(([k,v])=>{
+    const nm = k==="budget"?"Budget":k==="rivers"?"Rivers":k==="coasts"?"Coasts":"Communities";
+    const txt = k==="budget" ? `${nm} −$${-v}M` : `${nm} ${v>0?"+":"−"}${Math.abs(v)}`;
+    const cls = (k==="budget") ? "" : (v<0?"dn":"up");
+    return `<span class="chip ${cls}">${txt}</span>`;
+  }).join("");
+}
+
+function renderRound(){
+  const p = PROJECTS[S.round], last = S.picks[S.round];
+  let html = `<div class="round">
+    <div class="proj"><div><div class="step">PROJECT ${S.round+1} OF 5</div><h2>${p.name}</h2></div></div>`;
+  if(S.phase==="event"){
+    const e = EVENTS[S.round], ev = S.lastEvent;
+    html += `<div class="result event">
+      <div class="step">BETWEEN PROJECTS · ${e.title.toUpperCase()}</div>
+      <span class="stamp ${ev.loss?"bad":"good"}">${ev.loss?e.stampBad:e.stampGood}</span>
+      <p class="fact">${ev.loss ? e.bad(ev.loss) : e.good}</p>
+      <p class="fact"><b>Real world:</b> ${e.fact}</p>
+      <button class="go" id="next">Next project →</button>
+    </div></div>`;
+    stage.innerHTML = html; wireNext(); return;
+  }
+  html += `<p class="hint">${p.note}${S.phase==="choose" ? " Where should the sand come from?" : ""}</p><div class="cards">`;
+  SOURCES.forEach(s=>{
+    const picked = last && last.id===s.id;
+    const left = s.limit ? s.limit-used(s.id) : null;
+    const out = left!==null && left<=0 && !picked;
+    const dis = S.phase!=="choose" || out;
+    html += `<button class="card${picked?" picked":""}" data-id="${s.id}" ${dis?"disabled":""}
+      aria-label="${s.name}: $${s.cost} million. Rivers ${harm(s.d.rivers)}, coasts ${harm(s.d.coasts)}, communities ${harm(s.d.people)}.${s.works?"":" Does not work in concrete."}${left!==null?` ${Math.max(0,left)} left.`:""}">
+      <span class="swatch" style="background:${s.color}"></span>
+      <span class="nm">${s.name}</span>
+      <span class="tg">${s.tag}</span>
+      <span class="meta">
+        <span>$${s.cost}M</span>
+        <span>Rivers: ${harm(s.d.rivers)}</span>
+        <span>Coasts: ${harm(s.d.coasts)}</span>
+        <span>People: ${harm(s.d.people)}</span>
+        ${s.works?"":`<span class="warn">Concrete: ???</span>`}
+        ${left!==null?`<span>${out?"None left":`Supply: ${Math.max(0,left)} left`}</span>`:""}
+      </span>
+    </button>`;
+  });
+  html += `</div>`;
+  if(S.phase==="result" && last){
+    const s = byId(last.id);
+    html += `<div class="result">
+      <span class="stamp ${s.works?"good":"bad"}">${s.works?"Built":"Crumbled"}</span>
+      ${s.works ? "" : `<p class="fact">The round desert grains wouldn't bind, so the concrete crumbled and had to be torn out and redone (−$${REDO}M extra, Communities −3 for the delay).</p>`}
+      <div class="deltas">${chips(S.lastDelta)}</div>
+      <p class="fact"><b>Real world:</b> ${s.facts[last.factIdx]}</p>
+      <button class="go" id="next">${S.round<4?(EVENTS[S.round]?"Continue →":"Next project →"):"See results →"}</button>
+    </div>`;
+  }
+  html += `</div>`;
+  stage.innerHTML = html;
+  stage.querySelectorAll(".card").forEach(b=>b.addEventListener("click",()=>choose(b.dataset.id)));
+  wireNext();
+}
+function wireNext(){ const n=document.getElementById("next"); if(n){ n.addEventListener("click",next); n.focus({preventScroll:true}); } }
+
+function choose(id){
+  if(S.phase!=="choose") return;
+  const s = byId(id);
+  if(s.limit && used(id)>=s.limit) return;
+  const factIdx = used(id) % s.facts.length;
+  const cost = s.cost + (s.works?0:REDO);
+  const before = {rivers:S.rivers, coasts:S.coasts, people:S.people};
+  S.budget -= cost;
+  S.rivers = clamp(S.rivers + s.d.rivers);
+  S.coasts = clamp(S.coasts + s.d.coasts);
+  S.people = clamp(S.people + s.d.people - (s.works?0:3));
+  S.lastDelta = {budget:-cost, rivers:S.rivers-before.rivers, coasts:S.coasts-before.coasts, people:S.people-before.people};
+  S.picks.push({id, factIdx});
+  S.phase = "result";
+  pour(s.color, 60);
+  gauges(); renderRound(); snap();
+}
+function next(){
+  if(S.phase==="result" && EVENTS[S.round]){
+    const e = EVENTS[S.round];
+    const loss = Math.round((100 - S[e.key]) * 0.4);
+    S.people = clamp(S.people - loss);
+    S.lastEvent = {loss};
+    S.phase = "event"; gauges(); renderRound(); snap(); return;
+  }
+  if(S.round<4){ S.round++; S.phase="choose"; renderRound(); const c=stage.querySelector(".card:not(:disabled)"); if(c) c.focus({preventScroll:true}); }
+  else { S.phase="end"; renderEnd(); }
+  snap();
+}
+function scoreOf(){ return Math.round((S.rivers+S.coasts+S.people)/3*0.9 + Math.min(10, Math.max(0,S.budget)*0.4)); }
+function rankOf(sc){
+  if(sc>=85) return ["Sand steward","Every project got built, and the rivers, coasts and towns that depend on them came through healthy. This is what conserving sand looks like."];
+  if(sc>=65) return ["Getting there","Your region got built, but the rivers or coasts paid for it, and so did the people living beside them."];
+  if(sc>=40) return ["Running dry","Cheap sand came with expensive consequences: eroded rivers, stripped beaches and flooded neighborhoods."];
+  return ["Sand rush","You built a city and wrecked the landscape that protects it. Try the sources that leave rivers and beaches alone."];
+}
+function renderEnd(){
+  const sc = scoreOf(), [rank, blurb] = rankOf(sc);
+  const rows = S.picks.map((k,i)=>`<tr><td>${PROJECTS[i].name}</td><td>${byId(k.id).name}</td></tr>`).join("");
+  stage.innerHTML = `<div class="end">
+    <div class="score"><span class="big">${sc}</span><div><div class="rank">${rank}</div><p>${blurb}</p></div></div>
+    <div class="tablebox"><table><thead><tr><th>Project</th><th>Sand source</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <h3>The real sand problem</h3>
+    <ul class="facts">
+      <li>The world digs up about <b>50 billion tonnes</b> of sand and gravel a year, more than 19,000 Great Pyramids' worth, far faster than nature makes more.</li>
+      <li>Sand in rivers and on coasts is <b>alive</b>: it builds habitat, holds riverbanks in place and shields towns from storms. Once it's in concrete, it's gone from nature for good.</li>
+      <li>Building demand for sand is expected to rise up to <b>45% by 2060</b>.</li>
+      <li>The fixes are real: crushed-rock sand, recycled concrete, building with less concrete, and leaving sand where it protects us.</li>
+    </ul>
+    <button class="go" id="again">Play again</button>
+  </div>`;
+  const a=document.getElementById("again");
+  a.addEventListener("click",()=>{ S=fresh(); resetPile(); gauges(); renderRound(); snap(); const c=stage.querySelector(".card"); if(c) c.focus({preventScroll:true}); });
+  a.focus({preventScroll:true});
+}
+
+/* ---- sand pile canvas ---- */
+const cv = document.getElementById("pile"), cx = cv.getContext("2d");
+const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const G = 4; let W=0,H=110,cols=[],falling=[],landed=[],raf=0;
+function size(){
+  const r = cv.getBoundingClientRect(), d = window.devicePixelRatio||1;
+  if(r.width < 40) return;
+  W = Math.floor(r.width);
+  cv.width = W*d; cv.height = H*d; cx.setTransform(d,0,0,d,0,0);
+  const oldN = cols.length || 1, n = Math.ceil(W/G), old = landed.slice();
+  cols = new Array(n).fill(0); landed = [];
+  old.forEach(g=>settle(Math.min(n-1,Math.round((g.c+.5)/oldN*n)), g.color));
+  draw();
+}
+function resetPile(){ cols = cols.map(()=>0); landed=[]; falling=[]; draw(); }
+function settle(c, color){
+  for(let k=0;k<60;k++){
+    const h=cols[c], l=c>0?cols[c-1]:1e9, r=c<cols.length-1?cols[c+1]:1e9;
+    if(l<h-1 && (r>=h-1 || Math.random()<.5)) c--; else if(r<h-1) c++; else break;
+  }
+  cols[c]++; landed.push({c, y:cols[c], color});
+}
+function pour(color, n){
+  const center = Math.floor(cols.length/2);
+  if(reduce || !cols.length){ for(let i=0;i<n;i++) settle(Math.max(0,Math.min(cols.length-1,center)), color); draw(); return; }
+  for(let i=0;i<n;i++) falling.push({x:center*G+(Math.random()-.5)*14, y:-i*5-Math.random()*10, vy:1+Math.random(), color});
+  if(!raf) raf = requestAnimationFrame(tick);
+}
+function tick(){
+  raf = 0;
+  falling.forEach(g=>{ g.vy+=0.25; g.y+=g.vy; });
+  const still=[];
+  falling.forEach(g=>{
+    const c = Math.max(0,Math.min(cols.length-1,Math.floor(g.x/G)));
+    if(g.y >= H - cols[c]*G - G) settle(c, g.color); else still.push(g);
+  });
+  falling = still; draw();
+  if(falling.length) raf = requestAnimationFrame(tick);
+}
+function draw(){
+  cx.clearRect(0,0,W,H);
+  cx.fillStyle="#1B1F1D"; cx.fillRect(0,H-2,W,2);
+  landed.forEach(g=>{ cx.fillStyle=g.color; cx.fillRect(g.c*G, H-2-g.y*G, G, G); });
+  falling.forEach(g=>{ if(g.y>-G){ cx.fillStyle=g.color; cx.fillRect(g.x, g.y, G-1, G-1); } });
+}
+window.addEventListener("resize", size);
+
+/* ---- keep place across republish ---- */
+function snap(){}
+function start(data){
+  if(data && typeof data.round==="number" && Array.isArray(data.picks) && "rivers" in data){ S = data; }
+  size();
+  if(!cols.length){ cols = new Array(200).fill(0); }
+  S.picks.forEach(k=>{ const s=byId(k.id); for(let i=0;i<60;i++) settle(Math.floor(cols.length/2), s.color); });
+  draw(); gauges();
+  if(S.phase==="end") renderEnd(); else renderRound();
+}
+if(window.claude && window.claude.hot && window.claude.hot.snapshot){ window.claude.hot.snapshot(()=>JSON.parse(JSON.stringify(S))); }
+if(window.claude && window.claude.hot && window.claude.hot.ready){ window.claude.hot.ready(start); } else { start((window.claude && window.claude.hot && window.claude.hot.data) || {}); }
+})();
+</script>
+</body>
+</html>
